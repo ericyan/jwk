@@ -1,9 +1,10 @@
 package jwk
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"errors"
+
+	"github.com/ericyan/jwk/internal/base64url"
 )
 
 // OctetSequenceKey represents an octet sequence key, which contains
@@ -12,7 +13,7 @@ import (
 // OctetSequenceKey implements the Key interface.
 type OctetSequenceKey struct {
 	*Params
-	K string `json:"k"`
+	K *base64url.Value `json:"k"`
 }
 
 // NewOctetSequenceKey creates a new OctetSequenceKey.
@@ -31,7 +32,7 @@ func NewOctetSequenceKey(key []byte, params *Params) (*OctetSequenceKey, error) 
 		return nil, errors.New("jwk: invalid params, wrong key type")
 	}
 
-	return &OctetSequenceKey{params, base64.RawURLEncoding.EncodeToString(key)}, nil
+	return &OctetSequenceKey{params, base64url.NewValue(key)}, nil
 }
 
 // Parse parses the JSON Web Key as an octet sequence key.
@@ -45,7 +46,7 @@ func ParseOctetSequenceKey(jwk []byte) (*OctetSequenceKey, error) {
 	if key.KeyType != TypeOCT {
 		return nil, errors.New("jwk: invalid JWT, wrong type")
 	}
-	if key.K == "" {
+	if key.K == nil {
 		return nil, errors.New("jwk: invalid JWT, missing k")
 	}
 
@@ -54,10 +55,5 @@ func ParseOctetSequenceKey(jwk []byte) (*OctetSequenceKey, error) {
 
 // CryptoKey returns the underlying cryptographic key.
 func (key *OctetSequenceKey) CryptoKey() CryptoKey {
-	k, err := base64.RawURLEncoding.DecodeString(key.K)
-	if err != nil {
-		panic(err) // FIXME
-	}
-
-	return k
+	return key.K.Bytes()
 }
