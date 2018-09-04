@@ -61,3 +61,32 @@ func Parse(data []byte) (Key, error) {
 		return nil, fmt.Errorf("jwk: unsupported key type '%s'", params.KeyType)
 	}
 }
+
+// Set represents a JSON Web Key Set.
+type Set struct {
+	Keys []Key `json:"keys"`
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (s *Set) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Keys []json.RawMessage `json:"keys"`
+	}
+	err := json.Unmarshal(data, &raw)
+	if err != nil {
+		return err
+	}
+
+	keys := make([]Key, len(raw.Keys))
+	for i, jwk := range raw.Keys {
+		key, err := Parse(jwk)
+		if err != nil {
+			return err
+		}
+
+		keys[i] = key
+	}
+
+	s.Keys = keys
+	return nil
+}
