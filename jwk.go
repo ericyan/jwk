@@ -1,6 +1,7 @@
 package jwk
 
 import (
+	"crypto/rsa"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,6 +40,8 @@ type Key interface {
 // New creates a new Key.
 func New(key CryptoKey, params *Params) (Key, error) {
 	switch k := key.(type) {
+	case *rsa.PublicKey:
+		return NewRSAPublicKey(k, params)
 	case []byte:
 		return NewOctetSequenceKey(k, params)
 	default:
@@ -55,6 +58,9 @@ func Parse(data []byte) (Key, error) {
 	}
 
 	switch params.KeyType {
+	case TypeRSA:
+		// FIXME: handle private keys as well
+		return ParseRSAPublicKey(data)
 	case TypeOCT:
 		return ParseOctetSequenceKey(data)
 	default:
