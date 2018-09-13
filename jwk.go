@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"github.com/ericyan/jwk/internal/base64url"
 )
 
 // JSON Web Key types defined in RFC7518, Section 6.
@@ -42,6 +44,8 @@ func New(key CryptoKey, params *Params) (Key, error) {
 	switch k := key.(type) {
 	case *rsa.PublicKey:
 		return NewRSAPublicKey(k, params)
+	case *rsa.PrivateKey:
+		return NewRSAPrivateKey(k, params)
 	case []byte:
 		return NewOctetSequenceKey(k, params)
 	default:
@@ -51,20 +55,26 @@ func New(key CryptoKey, params *Params) (Key, error) {
 
 // Parse parses data as a JSON Web Key.
 func Parse(data []byte) (Key, error) {
-	var params Params
-	err := json.Unmarshal(data, &params)
+	var hints struct {
+		KeyType string           `json:"kty"`
+		D       *base64url.Value `json:"d,omitempty"`
+	}
+	err := json.Unmarshal(data, &hints)
 	if err != nil {
 		return nil, err
 	}
 
-	switch params.KeyType {
+	switch hints.KeyType {
 	case TypeRSA:
-		// FIXME: handle private keys as well
+		if hints.D != nil {
+			return ParseRSAPrivateKey(data)
+		}
+
 		return ParseRSAPublicKey(data)
 	case TypeOCT:
 		return ParseOctetSequenceKey(data)
 	default:
-		return nil, fmt.Errorf("jwk: unsupported key type '%s'", params.KeyType)
+		return nil, fmt.Errorf("jwk: unsupported key type '%s'", hints.KeyType)
 	}
 }
 
