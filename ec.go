@@ -103,3 +103,66 @@ func ParseECDSAPublicKey(jwk []byte) (*ECDSAPublicKey, error) {
 func (key *ECDSAPublicKey) CryptoKey() CryptoKey {
 	return key.pub
 }
+
+// ECDSAPrivateKey represents an ECDSA private key, which contains
+// algorithm-specific parameters defined in RFC 7518, Section 6.2.2.
+//
+// ECDSAPrivate implements the Key interface.
+type ECDSAPrivateKey struct {
+	*ECDSAPublicKey
+	D *base64url.Value `json:"d"`
+
+	priv *ecdsa.PrivateKey
+}
+
+// NewECDSAPrivateKey creates a new ECDSAPrivate.
+func NewECDSAPrivateKey(priv *ecdsa.PrivateKey, params *Params) (*ECDSAPrivateKey, error) {
+	if priv == nil {
+		return nil, errors.New("jwk: invalid crypto key")
+	}
+
+	pub, err := NewECDSAPublicKey(&priv.PublicKey, params)
+	if err != nil {
+		return nil, err
+	}
+
+	key := &ECDSAPrivateKey{
+		ECDSAPublicKey: pub,
+		D:              base64url.NewBigInt(priv.D),
+		priv:           priv,
+	}
+
+	return key, nil
+}
+
+// ParseECDSAPrivateKey parses the JSON Web Key as an ECDSA private key.
+func ParseECDSAPrivateKey(jwk []byte) (*ECDSAPrivateKey, error) {
+	key := new(ECDSAPrivateKey)
+	err := json.Unmarshal(jwk, key)
+	if err != nil {
+		return nil, err
+	}
+
+	if key.D == nil {
+		return nil, errors.New("jwk: invalid JWT, missing D")
+	}
+
+	pub, err := ParseECDSAPublicKey(jwk)
+	if err != nil {
+		return nil, err
+	}
+	key.ECDSAPublicKey = pub
+
+	priv := &ecdsa.PrivateKey{
+		PublicKey: *key.ECDSAPublicKey.pub,
+		D:         key.D.BigInt(),
+	}
+	key.priv = priv
+
+	return key, nil
+}
+
+// CryptoKey returns the underlying cryptographic key.
+func (key *ECDSAPrivateKey) CryptoKey() CryptoKey {
+	return key.priv
+}
