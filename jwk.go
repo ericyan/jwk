@@ -1,6 +1,7 @@
 package jwk
 
 import (
+	"crypto/ecdsa"
 	"crypto/rsa"
 	"encoding/json"
 	"errors"
@@ -42,6 +43,10 @@ type Key interface {
 // New creates a new Key.
 func New(key CryptoKey, params *Params) (Key, error) {
 	switch k := key.(type) {
+	case *ecdsa.PublicKey:
+		return NewECDSAPublicKey(k, params)
+	case *ecdsa.PrivateKey:
+		return NewECDSAPrivateKey(k, params)
 	case *rsa.PublicKey:
 		return NewRSAPublicKey(k, params)
 	case *rsa.PrivateKey:
@@ -65,6 +70,12 @@ func Parse(data []byte) (Key, error) {
 	}
 
 	switch hints.KeyType {
+	case TypeEC:
+		if hints.D != nil {
+			return ParseECDSAPrivateKey(data)
+		}
+
+		return ParseECDSAPublicKey(data)
 	case TypeRSA:
 		if hints.D != nil {
 			return ParseRSAPrivateKey(data)
